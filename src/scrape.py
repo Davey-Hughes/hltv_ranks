@@ -1,4 +1,4 @@
-# Scrapes HLTV rankings
+# Scrapes HLTV world rankings
 # Copyright (C) 2018  David Hughes
 
 # This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime as dt
+import datetime
 import subprocess
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -29,11 +29,25 @@ dates_map = {
     '2015-11-02': '2015-11-03',
     '2015-11-23': '2015-11-24',
     '2015-11-30': '2015-12-01',
+    '2015-12-07': '2015-12-08',
+    '2016-01-04': '2016-01-05',
+    '2016-02-08': '2016-02-09',
+    '2016-02-29': '2016-03-01',
+    '2016-04-04': '2016-04-05',
+    '2016-04-17': '2016-04-18',
+    '2016-05-16': '2016-04-17',
+    '2016-05-30': '2016-06-01',
+    '2016-06-20': '2016-06-21',
+    '2016-07-18': '2016-07-19',
+    '2016-07-25': '2016-07-26',
+    '2016-10-31': '2016-11-01',
+    '2018-01-15': '2018-01-16',
+    '2018-01-22': '2018-01-23',
 }
 
 # mapping in the datetime format
 fix_dates = {
-        dt.datetime.fromisoformat(k): dt.datetime.fromisoformat(dates_map[k])
+        datetime.datetime.fromisoformat(k): datetime.datetime.fromisoformat(dates_map[k])
         for k in dates_map
 }
 
@@ -89,9 +103,9 @@ def write_file(df):
 
 
 def main():
-    prev = dt.datetime.fromisoformat('2015-09-28')
-    # end = datetime.datetime.fromisoformat('2018-09-24')
-    end = dt.datetime.fromisoformat('2015-12-01')
+    prev = datetime.datetime.fromisoformat('2015-09-28')
+    end = datetime.datetime.fromisoformat('2018-09-24')
+    # end = datetime.datetime.fromisoformat('2015-12-01')
 
     # d = dict()
 
@@ -104,7 +118,7 @@ def main():
         soup = get_page_soup(adjust_date)
         process_page(adjust_date, soup)
 
-        week_after = prev + dt.timedelta(days=7)
+        week_after = prev + datetime.timedelta(days=7)
         prev = week_after
 
     df = make_df()
