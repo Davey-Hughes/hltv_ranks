@@ -99,14 +99,14 @@ def process_page(date, soup):
         new_names.append(name.text)
 
     for point in points:
-        new_points.append(point.text.replace('(', '').replace(' points)', ''))
+        new_points.append(int(point.text.replace('(', '').replace(' points)', '')))
 
     teams_lock.acquire()
     for i, name in enumerate(new_names):
         if name not in teams:
             teams[name] = dict()
 
-        teams[name][date] = new_points[i]
+        teams[name][date] = [i + 1, new_points[i]]
     teams_lock.release()
 
 
@@ -124,21 +124,26 @@ def get_page_soup(date):
 
 def make_df():
     # lock not required here because all threads have been joined by this point
-    df = pd.DataFrame(index=dates, columns=[k for k in teams])
+    df_points = pd.DataFrame(index=dates, columns=[k for k in teams])
+    df_ranks = pd.DataFrame(index=dates, columns=[k for k in teams])
 
     for i, date in enumerate(dates):
         for team in teams:
             if date in teams[team]:
-                df.at[date, team] = teams[team][date]
+                df_points.at[date, team] = teams[team][date][1]
+                df_ranks.at[date, team] = teams[team][date][0]
 
-    return df
+    return df_points, df_ranks
 
 
-def write_file(df):
+def write_file(df_p, df_r):
     script_path = os.path.abspath(os.path.dirname(__file__))
 
-    df.to_pickle(os.path.join(script_path, '../data/data.pkl'))
-    df.to_csv(os.path.join(script_path, '../data/data.csv'))
+    df_p.to_pickle(os.path.join(script_path, '../data/data_points.pkl'))
+    df_p.to_csv(os.path.join(script_path, '../data/data_points.csv'))
+
+    df_r.to_pickle(os.path.join(script_path, '../data/data_ranks.pkl'))
+    df_r.to_csv(os.path.join(script_path, '../data/data.ranks.csv'))
 
 
 def main():
@@ -189,8 +194,8 @@ def main():
                     print(t.threadid)
             break
 
-    df = make_df()
-    write_file(df)
+    df_p, df_r = make_df()
+    write_file(df_p, df_r)
 
 
 if __name__ == '__main__':
