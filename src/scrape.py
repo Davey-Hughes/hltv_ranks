@@ -24,15 +24,6 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 
-class MyThread(threading.Thread):
-    def __init__(self, threadid):
-        threading.Thread.__init__(self)
-        self.threadid = threadid
-
-    def run(self):
-        threadWork()
-
-
 # globals
 num_threads = 8
 
@@ -40,6 +31,10 @@ base_url = 'https://www.hltv.org/ranking/teams/'
 dates = []
 teams = dict()
 teams_lock = threading.Lock()
+
+dates_queue = queue.Queue()
+queue_lock = threading.Lock()
+
 
 # human readable mapping from aligned dates to actual dates in hltv
 dates_map = {
@@ -69,10 +64,17 @@ fix_dates = {
         for k in dates_map
 }
 
-dates_queue = queue.Queue()
-queue_lock = threading.Lock()
+
+class MyThread(threading.Thread):
+    def __init__(self, threadid):
+        threading.Thread.__init__(self)
+        self.threadid = threadid
+
+    def run(self):
+        threadWork()
 
 
+# task for each thread
 def threadWork():
     while True:
         queue_lock.acquire()
@@ -88,6 +90,7 @@ def threadWork():
         process_page(date, soup)
 
 
+# parse page for team name, rank, and points
 def process_page(date, soup):
     names = soup.find_all(class_='name')
     points = soup.find_all(class_='points')
@@ -110,11 +113,14 @@ def process_page(date, soup):
     teams_lock.release()
 
 
+# fetch page source for a given date
 def get_page_soup(date):
-    print('Getting data for %s' % (date))
+    print('Getting data for %s-%s-%s' % (date.year, date.month, date.day))
     url = base_url + str(date.year) + '/' + date.strftime("%B").lower() + '/' + str(date.day)
 
-    p = subprocess.run(['curl', url], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    p = subprocess.run(['curl', url],
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL)
 
     page = p.stdout
     soup = BeautifulSoup(page, 'html.parser')
@@ -122,6 +128,7 @@ def get_page_soup(date):
     return soup
 
 
+# make dataframe from scraped data
 def make_df():
     # lock not required here because all threads have been joined by this point
     df_points = pd.DataFrame(index=dates, columns=[k for k in teams])
@@ -136,6 +143,7 @@ def make_df():
     return df_points, df_ranks
 
 
+# write dataframes to file
 def write_file(df_p, df_r):
     script_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -151,7 +159,7 @@ def main():
     fin_threads = []
 
     prev = datetime.datetime.fromisoformat('2015-09-28')
-    end = datetime.datetime.fromisoformat('2018-09-24')
+    end = datetime.datetime.now()
 
     # generate all dates
     while (prev <= end):
@@ -164,14 +172,17 @@ def main():
         week_after = prev + datetime.timedelta(days=7)
         prev = week_after
 
+    # create queue of dates we want to scrape
     for date in dates:
         dates_queue.put(date)
 
+    # launch threads
     for i in range(num_threads):
         thread = MyThread(i)
         thread.start()
         threads.append(thread)
 
+    # wait for threads
     for t in threads:
         queue_lock.acquire()
         if dates_queue.empty():
@@ -186,6 +197,7 @@ def main():
             t.join()
             fin_threads.append(t)
 
+    # make sure threads have all exited
     for t in threads:
         if t not in fin_threads:
             print("Warning, the following threads haven't exited:")
@@ -194,6 +206,7 @@ def main():
                     print(t.threadid)
             break
 
+    # make and write dataframe
     df_p, df_r = make_df()
     write_file(df_p, df_r)
 

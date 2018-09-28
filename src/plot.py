@@ -94,17 +94,25 @@ def main():
                fontsize=fontsize, rotation='vertical')
 
     plt.tick_params(axis='both', which='both', bottom=False, top=False,
-                    labelbottom=True, left=False, right=True, labelleft=True,
-                    pad=25)
+                    labelbottom=True, left=False, right=True, labelleft=True)
+
+    # add padding for tick labels
+    if plot_type == 'points':
+        plt.tick_params(axis='y', pad=25)
+    elif plot_type == 'ranks':
+        plt.tick_params(axis='both', pad=25)
 
     # draw lines for each team
     for i, team in enumerate(teams):
+        # cull teams that have showed up for less than half of the hltv
+        # rankings history
         if len(df[team].dropna()) < len(dates) / 2:
             continue
 
         ys = list(df[team].values)
         plt.plot(dates, ys, lw=5)
 
+        # only show team names if they have a position at the end of the graph
         y_pos = df[team].fillna(0).values[-1]
         if y_pos > 0:
             plt.text(dates[-1] + np.timedelta64(2, 'D'),
@@ -112,9 +120,11 @@ def main():
                      team,
                      fontsize=fontsize)
 
+    # put #1 ranking at top of y axis
     if plot_type == 'ranks':
         plt.gca().invert_yaxis()
 
+    # export plot
     plt.savefig(os.path.join(script_path, plot_file),
                 bbox_inches='tight',
                 pad_inches=2.5)
