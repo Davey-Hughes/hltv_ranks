@@ -51,6 +51,9 @@ def main():
         ys = list(map(int, (df[team].fillna(0).values)))
         plt.plot(dates, ys, lw=2.5, color='#000000')
 
+        y_pos = int(df[team].fillna(0).values[-1])
+        plt.text(dates[-1], y_pos, team, fontsize=28)
+
     plt.savefig('../plots/plot.png')
 
 

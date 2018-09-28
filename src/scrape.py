@@ -16,12 +16,29 @@
 
 import datetime
 import subprocess
+import queue
+import threading
+
 import pandas as pd
 from bs4 import BeautifulSoup
+
+
+class MyThread(threading.Thread):
+    def __init__(self, threadid):
+        threading.Thread.__init__(self)
+        self.threadid = threadid
+
+    def run(self):
+        threadWork()
+
+
+# globals
+num_threads = 8
 
 base_url = 'https://www.hltv.org/ranking/teams/'
 dates = []
 teams = dict()
+teams_lock = threading.Lock()
 
 # human readable mapping from aligned dates to actual dates in hltv
 dates_map = {
@@ -35,7 +52,7 @@ dates_map = {
     '2016-02-29': '2016-03-01',
     '2016-04-04': '2016-04-05',
     '2016-04-17': '2016-04-18',
-    '2016-05-16': '2016-04-17',
+    '2016-05-16': '2016-05-17',
     '2016-05-30': '2016-06-01',
     '2016-06-20': '2016-06-21',
     '2016-07-18': '2016-07-19',
@@ -51,6 +68,24 @@ fix_dates = {
         for k in dates_map
 }
 
+dates_queue = queue.Queue()
+queue_lock = threading.Lock()
+
+
+def threadWork():
+    while True:
+        queue_lock.acquire()
+        try:
+            date = dates_queue.get(timeout=.001)
+        except:
+            queue_lock.release()
+            break
+
+        queue_lock.release()
+
+        soup = get_page_soup(date)
+        process_page(date, soup)
+
 
 def process_page(date, soup):
     names = soup.find_all(class_='name')
@@ -65,13 +100,13 @@ def process_page(date, soup):
     for point in points:
         new_points.append(point.text.replace('(', '').replace(' points)', ''))
 
-    dates.append(date)
-
+    teams_lock.acquire()
     for i, name in enumerate(new_names):
         if name not in teams:
             teams[name] = dict()
 
         teams[name][date] = new_points[i]
+    teams_lock.release()
 
 
 def get_page_soup(date):
@@ -87,6 +122,7 @@ def get_page_soup(date):
 
 
 def make_df():
+    # lock not required here because all threads have been joined by this point
     df = pd.DataFrame(index=dates, columns=[k for k in teams])
 
     for i, date in enumerate(dates):
@@ -103,23 +139,52 @@ def write_file(df):
 
 
 def main():
+    threads = []
+    fin_threads = []
+
     prev = datetime.datetime.fromisoformat('2015-09-28')
     end = datetime.datetime.fromisoformat('2018-09-24')
-    # end = datetime.datetime.fromisoformat('2015-12-01')
 
-    # d = dict()
-
+    # generate all dates
     while (prev <= end):
         adjust_date = prev
-
         if prev in fix_dates:
             adjust_date = fix_dates[prev]
 
-        soup = get_page_soup(adjust_date)
-        process_page(adjust_date, soup)
+        dates.append(adjust_date)
 
         week_after = prev + datetime.timedelta(days=7)
         prev = week_after
+
+    for date in dates:
+        dates_queue.put(date)
+
+    for i in range(num_threads):
+        thread = MyThread(i)
+        thread.start()
+        threads.append(thread)
+
+    for t in threads:
+        queue_lock.acquire()
+        if dates_queue.empty():
+            try:
+                queue_lock.release()
+                t.join(timeout=20)
+                fin_threads.append(t)
+            except:
+                pass
+        else:
+            queue_lock.release()
+            t.join()
+            fin_threads.append(t)
+
+    for t in threads:
+        if t not in fin_threads:
+            print("Warning, the following threads haven't exited:")
+            for t in threads:
+                if t not in fin_threads:
+                    print(t.threadid)
+            break
 
     df = make_df()
     write_file(df)
