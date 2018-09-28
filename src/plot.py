@@ -57,7 +57,7 @@ def main():
     dates = pd.DatetimeIndex(list(df.index.values))
 
     # plot dimensions
-    plt.figure(figsize=(200, 80), dpi=40)
+    plt.figure(figsize=(400, 80), dpi=40)
 
     # remove frame lines
     ax = plt.subplot(111)
@@ -106,7 +106,9 @@ def main():
     for i, team in enumerate(teams):
         # cull teams that have showed up for less than half of the hltv
         # rankings history
-        if len(df[team].dropna()) < len(dates) / 2:
+        if plot_type == 'points' and len(df[team].dropna()) < len(dates) / 2:
+            continue
+        elif plot_type == 'ranks' and min(df[team].dropna()) > 5:
             continue
 
         ys = list(df[team].values)
