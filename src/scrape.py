@@ -18,6 +18,7 @@ import datetime
 import subprocess
 import queue
 import threading
+import os
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -134,8 +135,10 @@ def make_df():
 
 
 def write_file(df):
-    df.to_pickle('../data/data.pkl')
-    df.to_csv('../data/data.csv')
+    script_path = os.path.abspath(os.path.dirname(__file__))
+
+    df.to_pickle(os.path.join(script_path, '../data/data.pkl'))
+    df.to_csv(os.path.join(script_path, '../data/data.csv'))
 
 
 def main():

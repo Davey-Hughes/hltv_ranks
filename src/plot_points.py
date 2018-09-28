@@ -1,4 +1,4 @@
-# Plots HLTV world rankings over time
+# Plots HLTV world rankings (by points) over time
 # Copyright (C) 2018  David Hughes
 
 # This program is free software: you can redistribute it and/or modify
@@ -14,24 +14,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
+
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+
+# globals
+fontsize = 56
 
 
 def main():
-    df = pd.read_pickle("../data/data.pkl")
+    script_path = os.path.abspath(os.path.dirname(__file__))
+    df = pd.read_pickle(os.path.join(script_path, '../data/data.pkl'))
+
     teams = list(df.columns.values)
     dates = list(df.index.values)
 
     # plot dimensions
-    plt.figure(figsize=(40, 40))
+    plt.figure(figsize=(200, 80), dpi=100)
 
     # remove frame lines
     ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
 
     # show ticklines at left and bottom only
     ax.get_xaxis().tick_bottom()
@@ -41,20 +49,38 @@ def main():
     plt.ylim(0, 1000)
     plt.xlim(df.first_valid_index(), df.last_valid_index())
 
-    plt.yticks(range(0, 910, 100), [str(x) for x in range(0, 910, 100)], fontsize=28)
-    plt.xticks(fontsize=28)
+    first = df.first_valid_index()
+    last = df.last_valid_index()
 
-    plt.tick_params(axis="both", which="both", bottom=False, top=False,
+    date_range = pd.date_range(first, last)
+
+    for y in range(0, 1100, 100):
+        plt.plot(date_range, [y] * len(date_range),
+                 '--', lw=5, color='black', alpha=0.3)
+
+    # y axis ticks
+    plt.yticks(range(100, 1100, 100),
+               [str(x) for x in range(100, 1100, 100)],
+               fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+
+    plt.tick_params(axis='both', which='both', bottom=False, top=False,
                     labelbottom=True, left=False, right=True, labelleft=True)
 
+    # draw lines for each team
     for i, team in enumerate(teams):
         ys = list(map(int, (df[team].fillna(0).values)))
-        plt.plot(dates, ys, lw=2.5, color='#000000')
+        plt.plot(dates, ys, lw=5)
 
         y_pos = int(df[team].fillna(0).values[-1])
-        plt.text(dates[-1], y_pos, team, fontsize=28)
+        plt.text(dates[-1] + np.timedelta64(2, 'D'),
+                 y_pos,
+                 team,
+                 fontsize=fontsize)
 
-    plt.savefig('../plots/plot.png')
+    plt.savefig(os.path.join(script_path, '../plots/plot_points.png'),
+                bbox_inches='tight',
+                pad_inches=2.5)
 
 
 if __name__ == '__main__':
