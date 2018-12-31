@@ -2,7 +2,7 @@
 
 <img src="https://media.githubusercontent.com/media/Davey-Hughes/hltv_ranks_pandas/master/plots/plot_ranks.png" width="1000"/>
 
-## Depreciation
+## Deprecation
 This repo will be reimplemented by storing the data scraped from HLTV in a
 database. This should make performing analysis on information besides the world
 rankings much easier once a local database has been built.
